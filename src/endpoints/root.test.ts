@@ -48,7 +48,15 @@ describe('RootRouter', () => {
     await fs.writeFile(path.join(cacheDir, 'photo.jpg'), Buffer.from([1, 2, 3]))
     const photoCache = new FakePhotoCache(
       cacheDir,
-      [{ relPath: 'a.png', cacheFileName: 'photo.jpg', format: 'jpeg' }],
+      [
+        {
+          relPath: 'a.png',
+          cacheFileName: 'photo.jpg',
+          format: 'jpeg',
+          width: 800,
+          height: 600,
+        },
+      ],
       true
     )
     const photoSelector = new PhotoSelector({
@@ -97,7 +105,15 @@ describe('RootRouter', () => {
   it('reports readiness and count on GET /health', async () => {
     const photoCache = new FakePhotoCache(
       cacheDir,
-      [{ relPath: 'a.png', cacheFileName: 'photo.jpg', format: 'jpeg' }],
+      [
+        {
+          relPath: 'a.png',
+          cacheFileName: 'photo.jpg',
+          format: 'jpeg',
+          width: 800,
+          height: 600,
+        },
+      ],
       true
     )
     const photoSelector = new PhotoSelector({ dedupeWindowMs: 60_000 })

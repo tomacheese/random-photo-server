@@ -57,7 +57,12 @@ describe('PhotoCache', () => {
     for (const entry of entries) {
       const stat = await fs.stat(path.join(cacheDir, entry.cacheFileName))
       expect(stat.isFile()).toBe(true)
+      expect(entry.width).toBeGreaterThan(0)
+      expect(entry.height).toBeGreaterThan(0)
     }
+
+    const aEntry = entries.find((e) => e.relPath === 'a.png')
+    expect(aEntry).toMatchObject({ width: 400, height: 300 })
   })
 
   it('skips unchanged files and reprocesses changed ones on a second init', async () => {

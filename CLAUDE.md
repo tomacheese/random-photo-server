@@ -70,8 +70,11 @@ pnpm fix
 - `src/photo-cache/process.ts`: `sharp` を用いた画像リサイズ・圧縮処理
 - `src/photo-cache/index.ts`: `PhotoCache` クラス。`cache/` の初期構築・`chokidar` による監視・差分更新を担う
 - `src/photo-selector.ts`: `PhotoSelector` クラス。IP 単位で直近配信済み画像を避けつつランダム選択する
+- `src/photo-orientation.ts`: 画像の幅・高さからアスペクト比に基づき向き(`portrait`/`landscape`/`square`)を判定する純粋関数 `getPhotoOrientation`
 - `src/endpoints/index.ts`: ルーターの基底クラス `BaseRouter`
 - `src/endpoints/root.ts`: `GET /`(ランダム画像配信)・`GET /health`(ヘルスチェック)
+- `src/endpoints/photo-response.ts`: `RootRouter` と `OrientationRouter` が共有する、候補一覧からのランダム選択・画像配信の共通処理(`servePickedPhoto`)
+- `src/endpoints/orientation.ts`: `GET /portrait`(縦長)・`GET /landscape`(横長)エンドポイントを提供する `OrientationRouter`
 
 ## 実装パターン
 

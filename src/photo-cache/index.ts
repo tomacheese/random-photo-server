@@ -21,6 +21,8 @@ export interface CachedEntry {
   relPath: string
   cacheFileName: string
   format: PhotoFormat
+  width: number
+  height: number
 }
 
 /**
@@ -178,6 +180,8 @@ export class PhotoCache {
         relPath,
         cacheFileName: entry.cacheFileName,
         format: entry.format,
+        width: entry.width,
+        height: entry.height,
       })
     )
     return this.cachedEntries
