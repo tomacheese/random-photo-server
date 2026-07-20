@@ -1,0 +1,45 @@
+# Builds and/or publishes the Docker image to an arbitrary registry.
+# Runs on pull request creation/update.
+
+name: Docker
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    types:
+      - opened
+      - synchronize
+    paths:
+      - .github/workflows/docker.yml
+  pull_request_target:
+    branches:
+      - main
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-ci:
+    name: Docker CI
+    permissions:
+      contents: read
+      packages: write
+    uses: book000/templates/.github/workflows/reusable-docker.yml@master
+    with:
+      targets: >-
+        [
+          { imageName: "tomacheese/random-photo-server", context: ".", file: "Dockerfile", packageName: "random-photo-server" }
+        ]
+      platforms: linux/amd64
+    secrets:
+      DOCKER_USERNAME: ${{ github.actor }}
+      DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

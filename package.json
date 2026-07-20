@@ -1,0 +1,55 @@
+{
+  "name": "random-photo-server",
+  "version": "1.0.0",
+  "description": "Serves a randomly selected, resized photo from photos/ for a VRChat world photo frame",
+  "homepage": "https://github.com/tomacheese/random-photo-server",
+  "bugs": {
+    "url": "https://github.com/tomacheese/random-photo-server/issues"
+  },
+  "license": "MIT",
+  "author": "Tomachi <tomachi@tomacheese.com>",
+  "private": true,
+  "main": "index.js",
+  "type": "module",
+  "repository": {
+    "url": "git@github.com:tomacheese/random-photo-server.git",
+    "type": "git"
+  },
+  "scripts": {
+    "start": "tsx ./src/main.ts",
+    "dev": "tsx watch ./src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:prettier": "prettier --check src",
+    "lint:tsc": "tsc",
+    "fix:eslint": "eslint . -c eslint.config.mjs --fix",
+    "fix:prettier": "prettier --write src",
+    "preinstall": "npx only-allow pnpm",
+    "lint": "run-z lint:prettier,lint:eslint,lint:tsc",
+    "lint:eslint": "eslint . -c eslint.config.mjs",
+    "fix": "run-z fix:prettier,fix:eslint"
+  },
+  "dependencies": {
+    "@book000/node-utils": "1.24.292",
+    "@fastify/cors": "11.3.0",
+    "chokidar": "5.0.0",
+    "fastify": "5.10.0",
+    "sharp": "0.35.3",
+    "tsx": "4.23.1"
+  },
+  "devDependencies": {
+    "@book000/eslint-config": "1.16.11",
+    "@types/node": "24.13.3",
+    "eslint": "10.7.0",
+    "eslint-config-standard": "17.1.0",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-n": "18.2.2",
+    "eslint-plugin-promise": "7.3.0",
+    "prettier": "3.9.5",
+    "run-z": "2.1.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  },
+  "packageManager": "pnpm@11.15.0"
+}
