@@ -8,8 +8,7 @@ import { PhotoSelector } from '../photo-selector.js'
 type FilterableOrientation = Exclude<PhotoOrientation, 'square'>
 
 /**
- * 写真の向き(縦長・横長)でフィルタリングしたランダム画像配信エンドポイントを
- * 提供するルーター
+ * 写真の向き(縦長・横長)でフィルタリングしたランダム画像配信エンドポイントを提供するルーター
  */
 export class OrientationRouter extends BaseRouter {
   private readonly photoCache: PhotoCacheReader

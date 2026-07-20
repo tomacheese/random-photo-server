@@ -7,8 +7,8 @@ import { PhotoSelector, SelectableItem } from '../photo-selector.js'
 import { PhotoCacheReader } from './root.js'
 
 /**
- * PhotoSelector に渡す選択候補。CachedEntry に SelectableItem の id を
- * 付与したもの(id には cacheFileName を用いる)
+ * PhotoSelector に渡す選択候補。
+ * CachedEntry に SelectableItem の id を付与したもの(id には cacheFileName を用いる)
  */
 export type Candidate = CachedEntry & SelectableItem
 
