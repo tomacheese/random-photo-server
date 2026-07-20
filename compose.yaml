@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - '3000:80'
+    volumes:
+      - ./photos:/photos:ro
+      - ./cache:/data/cache
+    env_file:
+      - .env

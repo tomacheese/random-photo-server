@@ -1,0 +1,20 @@
+# Builds and tests with Node.js, using the version pinned in .node-version
+
+name: Node CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  node-ci:
+    name: Node CI
+    permissions:
+      contents: read
+    uses: book000/templates/.github/workflows/reusable-nodejs-ci-pnpm.yml@master
