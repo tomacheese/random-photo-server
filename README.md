@@ -1,7 +1,7 @@
 # random-photo-server
 
 `photos/` 以下の画像からランダムに1枚を選び、リサイズ・圧縮した上で配信する Web サーバーです。
-`https://vrcrandomphoto.tomacheese.com` でホストし、VRChat ワールドに設置したフォトフレームからの表示を主な用途としています。
+`https://vrps.tomacheese.com` でホストし、VRChat ワールドに設置したフォトフレームからの表示を主な用途としています。
 
 ## 仕組み
 
