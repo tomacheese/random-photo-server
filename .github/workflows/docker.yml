@@ -31,8 +31,9 @@ jobs:
   docker-ci:
     name: Docker CI
     permissions:
-      contents: read
+      contents: write
       packages: write
+      deployments: write
     uses: book000/templates/.github/workflows/reusable-docker.yml@master
     with:
       targets: >-
