@@ -34,6 +34,7 @@ jobs:
       contents: write
       packages: write
       deployments: write
+      actions: read
     uses: book000/templates/.github/workflows/reusable-docker.yml@master
     with:
       targets: >-
