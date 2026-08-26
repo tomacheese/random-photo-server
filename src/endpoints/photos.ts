@@ -65,7 +65,12 @@ export class PhotosRouter extends BaseRouter {
 
   init(): Promise<void> {
     this.fastify.get('/photos', this.routeGetPhotoList.bind(this))
-    this.fastify.get('/photos/:id', this.routeGetPhotoById.bind(this))
+    this.fastify.get(
+      '/photos/:id',
+      // CodeQL js/missing-rate-limiting 対応: ファイル読み取りを伴うため IP ごとに制限する
+      { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+      this.routeGetPhotoById.bind(this)
+    )
     return Promise.resolve()
   }
 
