@@ -77,6 +77,7 @@ pnpm fix
 - `src/endpoints/root.ts`: `GET /`(ランダム画像配信)・`GET /health`(ヘルスチェック)
 - `src/endpoints/photo-response.ts`: `RootRouter` と `OrientationRouter` が共有する、候補一覧からのランダム選択・画像配信の共通処理(`servePickedPhoto`)
 - `src/endpoints/orientation.ts`: `GET /portrait`(縦長)・`GET /landscape`(横長)、および `GET /portrait/:photoframeId`・`GET /landscape/:photoframeId`(タイムスタンプのバケツ単位で決定的に選択)を提供する `OrientationRouter`
+- `src/endpoints/photos.ts`: `GET /photos`(キャッシュ済み画像のサムネイル一覧を HTML で表示、`orientation` クエリで絞り込み可能)・`GET /photos/:id`(`id` 指定で画像バイナリを1枚取得)を提供する `PhotosRouter`
 
 ## 実装パターン
 

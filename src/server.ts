@@ -1,8 +1,10 @@
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import { Logger } from '@book000/node-utils'
 import fastify, { FastifyInstance } from 'fastify'
 import { BaseRouter } from './endpoints/index.js'
 import { OrientationRouter } from './endpoints/orientation.js'
+import { PhotosRouter } from './endpoints/photos.js'
 import { RootRouter } from './endpoints/root.js'
 import { PhotoCache } from './photo-cache/index.js'
 import { PhotoSelector } from './photo-selector.js'
@@ -27,10 +29,13 @@ export async function buildApp(
     origin: true,
     methods: ['GET'],
   })
+  // global: false のため、config.rateLimit を明示指定したルートのみ制限される
+  await app.register(rateLimit, { global: false })
 
   const routers: BaseRouter[] = [
     new RootRouter(app, photoCache, photoSelector),
     new OrientationRouter(app, photoCache, photoSelector, bucketWidthSeconds),
+    new PhotosRouter(app, photoCache),
   ]
 
   for (const router of routers) {

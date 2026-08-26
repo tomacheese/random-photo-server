@@ -18,6 +18,8 @@
 | GET | `/landscape` | キャッシュ済み画像のうち横長のものからランダムに1枚選び、画像バイナリを返す。アスペクト比が 0.95〜1.05 の正方形に近い画像は対象外。リクエスト元 IP ごとの直近重複回避は `/` と共有する |
 | GET | `/portrait/{photoframeId}` | 縦長画像のうち1枚を、リクエスト時刻と `photoframeId`(非負整数)から決定論的に選び返す。`BUCKET_WIDTH_SEC` 秒単位のバケットに時刻を切り捨てるため、同一バケット・同一 `photoframeId` であれば常に同じ画像になる。複数のフォトフレームで表示を同期させる用途 |
 | GET | `/landscape/{photoframeId}` | `/portrait/{photoframeId}` の横長版 |
+| GET | `/photos` | キャッシュ済み画像のサムネイル一覧を HTML で表示する。`?orientation=portrait` または `?orientation=landscape` で絞り込み可能 |
+| GET | `/photos/:id` | `id`(`/photos` が表示する画像の識別子)を指定して該当する画像バイナリを1枚返す |
 | GET | `/health` | キャッシュ準備状況と枚数を返すヘルスチェック |
 
 ## 環境変数

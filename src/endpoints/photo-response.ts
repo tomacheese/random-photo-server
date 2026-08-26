@@ -13,7 +13,7 @@ import { PhotoCacheReader } from './root.js'
  */
 export type Candidate = CachedEntry & SelectableItem
 
-const CONTENT_TYPE_BY_FORMAT: Record<PhotoFormat, string> = {
+export const CONTENT_TYPE_BY_FORMAT: Record<PhotoFormat, string> = {
   jpeg: 'image/jpeg',
 }
 

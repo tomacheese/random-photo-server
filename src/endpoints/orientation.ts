@@ -9,7 +9,7 @@ import { PhotoCacheReader } from './root.js'
 import { getPhotoOrientation, PhotoOrientation } from '../photo-orientation.js'
 import { PhotoSelector } from '../photo-selector.js'
 
-type FilterableOrientation = Exclude<PhotoOrientation, 'square'>
+export type FilterableOrientation = Exclude<PhotoOrientation, 'square'>
 
 interface PhotoframeParams {
   photoframeId: string
