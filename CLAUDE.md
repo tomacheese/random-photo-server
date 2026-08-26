@@ -38,6 +38,7 @@
 - ドキュメント: エクスポートされた関数・インターフェース・クラスに JSDoc を日本語で記載する
 - `photos/` は HTTP から直接公開しない。配信は必ず `cache/` 内の生成物経由で行う
 - `OUTPUT_FORMAT` は現状 `jpeg` のみ対応。それ以外の値が指定された場合は起動時にエラーで停止させる(黙って無視しない)
+- `BUCKET_WIDTH_SEC`(デフォルト `180`)は正の整数かつ `86400` の約数である必要がある。満たさない場合は起動時にエラーで停止させる(黙って無視しない)
 
 ## 開発コマンド
 
@@ -71,10 +72,11 @@ pnpm fix
 - `src/photo-cache/index.ts`: `PhotoCache` クラス。`cache/` の初期構築・`chokidar` による監視・差分更新を担う
 - `src/photo-selector.ts`: `PhotoSelector` クラス。IP 単位で直近配信済み画像を避けつつランダム選択する
 - `src/photo-orientation.ts`: 画像の幅・高さからアスペクト比に基づき向き(`portrait`/`landscape`/`square`)を判定する純粋関数 `getPhotoOrientation`
+- `src/deterministic-selector.ts`: タイムスタンプを `BUCKET_WIDTH_SEC` 秒単位のバケツに区切って決定的に写真を選択する純粋関数 `getBucketIndex`/`pickDeterministic`
 - `src/endpoints/index.ts`: ルーターの基底クラス `BaseRouter`
 - `src/endpoints/root.ts`: `GET /`(ランダム画像配信)・`GET /health`(ヘルスチェック)
 - `src/endpoints/photo-response.ts`: `RootRouter` と `OrientationRouter` が共有する、候補一覧からのランダム選択・画像配信の共通処理(`servePickedPhoto`)
-- `src/endpoints/orientation.ts`: `GET /portrait`(縦長)・`GET /landscape`(横長)エンドポイントを提供する `OrientationRouter`
+- `src/endpoints/orientation.ts`: `GET /portrait`(縦長)・`GET /landscape`(横長)、および `GET /portrait/:photoframeId`・`GET /landscape/:photoframeId`(タイムスタンプのバケツ単位で決定的に選択)を提供する `OrientationRouter`
 - `src/endpoints/photos.ts`: `GET /photos`(キャッシュ済み画像のサムネイル一覧を HTML で表示、`orientation` クエリで絞り込み可能)・`GET /photos/:id`(`id` 指定で画像バイナリを1枚取得)を提供する `PhotosRouter`
 
 ## 実装パターン

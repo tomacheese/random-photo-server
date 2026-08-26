@@ -11,6 +11,20 @@ async function main() {
     )
   }
 
+  const bucketWidthSeconds = Number.parseInt(ENV.BUCKET_WIDTH_SEC, 10)
+  // Bucket width must divide a day evenly so bucket boundaries land at the
+  // same wall-clock instants every day, matching the Unity client's assumption
+  if (
+    !Number.isSafeInteger(bucketWidthSeconds) ||
+    bucketWidthSeconds <= 0 ||
+    86_400 % bucketWidthSeconds !== 0 ||
+    String(bucketWidthSeconds) !== ENV.BUCKET_WIDTH_SEC
+  ) {
+    throw new Error(
+      `Invalid BUCKET_WIDTH_SEC: "${ENV.BUCKET_WIDTH_SEC}" (must be a positive divisor of 86400)`
+    )
+  }
+
   const logger = Logger.configure('main')
 
   const photoCache = new PhotoCache({
@@ -29,7 +43,7 @@ async function main() {
     dedupeWindowMs: Number.parseInt(ENV.DEDUPE_WINDOW_SEC, 10) * 1000,
   })
 
-  const app = await buildApp(photoCache, photoSelector)
+  const app = await buildApp(photoCache, photoSelector, bucketWidthSeconds)
   const host = ENV.API_HOST
   const port = Number.parseInt(ENV.API_PORT, 10)
   app.listen({ host, port }, (error, address) => {
