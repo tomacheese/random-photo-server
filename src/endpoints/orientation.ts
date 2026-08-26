@@ -5,7 +5,7 @@ import { PhotoCacheReader } from './root.js'
 import { getPhotoOrientation, PhotoOrientation } from '../photo-orientation.js'
 import { PhotoSelector } from '../photo-selector.js'
 
-type FilterableOrientation = Exclude<PhotoOrientation, 'square'>
+export type FilterableOrientation = Exclude<PhotoOrientation, 'square'>
 
 /**
  * 写真の向き(縦長・横長)でフィルタリングしたランダム画像配信エンドポイントを提供するルーター
