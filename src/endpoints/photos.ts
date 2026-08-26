@@ -6,29 +6,35 @@ import { FilterableOrientation } from './orientation.js'
 import { CONTENT_TYPE_BY_FORMAT } from './photo-response.js'
 import { PhotoCacheReader } from './root.js'
 import { CachedEntry } from '../photo-cache/index.js'
-import { getPhotoOrientation } from '../photo-orientation.js'
+import { getPhotoOrientation, PhotoOrientation } from '../photo-orientation.js'
 
 /**
- * キャッシュ済み画像一覧を表示するサムネイルグリッドの HTML を組み立てる。
- * 埋め込む値は id(内部生成のハッシュ)・width/height(数値)・orientation(固定文字列)のみで、
- * いずれも外部入力をそのまま埋め込むものではないため追加のエスケープ処理は行わない
+ * 表示用に向きを付与したキャッシュ済み画像1件分の情報
+ */
+interface PhotoListItem {
+  entry: CachedEntry
+  orientation: PhotoOrientation
+}
+
+/**
+ * 埋め込む値は id(内部生成のハッシュ)・width/height(数値)・orientation(固定文字列)のみで、いずれも外部入力をそのまま埋め込むものではないため追加のエスケープ処理は行わない
  *
- * @param entries 表示対象のキャッシュ済み画像一覧
+ * @param items 表示対象のキャッシュ済み画像一覧(向き判定済み)
  * @returns サムネイルグリッドを表示する HTML 文字列
  */
-function renderPhotoListHtml(entries: CachedEntry[]): string {
-  const items = entries
-    .map((entry) => {
-      const orientation = getPhotoOrientation(entry.width, entry.height)
-      return `<li><a href="/photos/${entry.cacheFileName}"><img src="/photos/${entry.cacheFileName}" loading="lazy" /></a><p>${entry.width}x${entry.height} (${orientation})</p></li>`
-    })
+function renderPhotoListHtml(items: PhotoListItem[]): string {
+  const listItems = items
+    .map(
+      ({ entry, orientation }) =>
+        `<li><a href="/photos/${entry.cacheFileName}"><img src="/photos/${entry.cacheFileName}" loading="lazy" /></a><p>${entry.width}x${entry.height} (${orientation})</p></li>`
+    )
     .join('\n')
 
   return `<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<title>Photos (${entries.length})</title>
+<title>Photos (${items.length})</title>
 <style>
 body { font-family: sans-serif; margin: 16px; }
 .grid { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
@@ -37,9 +43,9 @@ body { font-family: sans-serif; margin: 16px; }
 </style>
 </head>
 <body>
-<h1>Photos (${entries.length})</h1>
+<h1>Photos (${items.length})</h1>
 <ul class="grid">
-${items}
+${listItems}
 </ul>
 </body>
 </html>
@@ -85,17 +91,19 @@ export class PhotosRouter extends BaseRouter {
     }
     const orientation: FilterableOrientation | undefined = rawOrientation
 
-    const entries = this.photoCache
+    const items = this.photoCache
       .getCachedEntries()
+      .map((entry) => ({
+        entry,
+        orientation: getPhotoOrientation(entry.width, entry.height),
+      }))
       .filter(
-        (entry) =>
-          orientation === undefined ||
-          getPhotoOrientation(entry.width, entry.height) === orientation
+        (item) => orientation === undefined || item.orientation === orientation
       )
 
     await reply
       .header('Content-Type', 'text/html; charset=utf-8')
-      .send(renderPhotoListHtml(entries))
+      .send(renderPhotoListHtml(items))
   }
 
   private async routeGetPhotoById(
