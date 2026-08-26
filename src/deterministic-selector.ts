@@ -5,7 +5,10 @@
  * @param bucketWidthSeconds バケット幅(秒)
  * @returns バケット番号
  */
-export function getBucketIndex(nowMs: number, bucketWidthSeconds: number): number {
+export function getBucketIndex(
+  nowMs: number,
+  bucketWidthSeconds: number
+): number {
   return Math.floor(nowMs / 1000 / bucketWidthSeconds)
 }
 
