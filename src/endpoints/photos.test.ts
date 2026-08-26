@@ -109,4 +109,117 @@ describe('PhotosRouter', () => {
       expect(response.statusCode).toBe(503)
     })
   })
+
+  describe('GET /photos', () => {
+    it('returns 200 with an HTML page listing every cached photo', async () => {
+      const photoCache = new FakePhotoCache(
+        cacheDir,
+        [
+          {
+            relPath: 'p.png',
+            cacheFileName: 'portrait.jpg',
+            format: 'jpeg',
+            width: 900,
+            height: 1600,
+          },
+          {
+            relPath: 'l.png',
+            cacheFileName: 'landscape.jpg',
+            format: 'jpeg',
+            width: 1600,
+            height: 900,
+          },
+        ],
+        true
+      )
+
+      app = fastify()
+      await new PhotosRouter(app, photoCache).init()
+      await app.ready()
+
+      const response = await app.inject({ method: 'GET', url: '/photos' })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.headers['content-type']).toBe(
+        'text/html; charset=utf-8'
+      )
+      expect(response.body).toContain('/photos/portrait.jpg')
+      expect(response.body).toContain('/photos/landscape.jpg')
+    })
+
+    it('filters by the orientation query parameter', async () => {
+      const photoCache = new FakePhotoCache(
+        cacheDir,
+        [
+          {
+            relPath: 'p.png',
+            cacheFileName: 'portrait.jpg',
+            format: 'jpeg',
+            width: 900,
+            height: 1600,
+          },
+          {
+            relPath: 'l.png',
+            cacheFileName: 'landscape.jpg',
+            format: 'jpeg',
+            width: 1600,
+            height: 900,
+          },
+        ],
+        true
+      )
+
+      app = fastify()
+      await new PhotosRouter(app, photoCache).init()
+      await app.ready()
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/photos?orientation=portrait',
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(response.body).toContain('/photos/portrait.jpg')
+      expect(response.body).not.toContain('/photos/landscape.jpg')
+    })
+
+    it('returns 400 for an invalid orientation value', async () => {
+      const photoCache = new FakePhotoCache(cacheDir, [], true)
+
+      app = fastify()
+      await new PhotosRouter(app, photoCache).init()
+      await app.ready()
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/photos?orientation=diagonal',
+      })
+
+      expect(response.statusCode).toBe(400)
+    })
+
+    it('returns 200 with an empty list when there are zero cached photos', async () => {
+      const photoCache = new FakePhotoCache(cacheDir, [], true)
+
+      app = fastify()
+      await new PhotosRouter(app, photoCache).init()
+      await app.ready()
+
+      const response = await app.inject({ method: 'GET', url: '/photos' })
+
+      expect(response.statusCode).toBe(200)
+    })
+
+    it('returns 503 when the cache is not ready yet', async () => {
+      const photoCache = new FakePhotoCache(cacheDir, [], false)
+
+      app = fastify()
+      await new PhotosRouter(app, photoCache).init()
+      await app.ready()
+
+      const response = await app.inject({ method: 'GET', url: '/photos' })
+
+      expect(response.statusCode).toBe(503)
+    })
+  })
 })
