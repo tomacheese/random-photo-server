@@ -7,6 +7,7 @@ const defaultEnvironment = {
   OUTPUT_FORMAT: 'jpeg',
   JPEG_QUALITY: '82',
   DEDUPE_WINDOW_SEC: '60',
+  BUCKET_WIDTH_SEC: '180',
 }
 
 type EnvironmentName = keyof typeof defaultEnvironment
