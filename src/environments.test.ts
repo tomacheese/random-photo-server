@@ -26,6 +26,7 @@ describe('ENV', () => {
       OUTPUT_FORMAT: 'jpeg',
       JPEG_QUALITY: '82',
       DEDUPE_WINDOW_SEC: '60',
+      BUCKET_WIDTH_SEC: '180',
     })
   })
 

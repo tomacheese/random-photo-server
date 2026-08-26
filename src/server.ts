@@ -12,11 +12,13 @@ import { PhotoSelector } from './photo-selector.js'
  *
  * @param photoCache 初期化・監視開始済みの PhotoCache
  * @param photoSelector 画像選択に使う PhotoSelector
+ * @param bucketWidthSeconds タイムスタンプベース配信で同一画像を返す時間幅(秒)
  * @returns Fastify アプリケーション
  */
 export async function buildApp(
   photoCache: PhotoCache,
-  photoSelector: PhotoSelector
+  photoSelector: PhotoSelector,
+  bucketWidthSeconds: number
 ): Promise<FastifyInstance> {
   const logger = Logger.configure('buildApp')
 
@@ -28,7 +30,7 @@ export async function buildApp(
 
   const routers: BaseRouter[] = [
     new RootRouter(app, photoCache, photoSelector),
-    new OrientationRouter(app, photoCache, photoSelector),
+    new OrientationRouter(app, photoCache, photoSelector, bucketWidthSeconds),
   ]
 
   for (const router of routers) {
