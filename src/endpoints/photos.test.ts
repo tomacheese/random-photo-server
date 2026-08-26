@@ -140,9 +140,7 @@ describe('PhotosRouter', () => {
       const response = await app.inject({ method: 'GET', url: '/photos' })
 
       expect(response.statusCode).toBe(200)
-      expect(response.headers['content-type']).toBe(
-        'text/html; charset=utf-8'
-      )
+      expect(response.headers['content-type']).toBe('text/html; charset=utf-8')
       expect(response.body).toContain('/photos/portrait.jpg')
       expect(response.body).toContain('/photos/landscape.jpg')
     })

@@ -3,6 +3,7 @@ import { Logger } from '@book000/node-utils'
 import fastify, { FastifyInstance } from 'fastify'
 import { BaseRouter } from './endpoints/index.js'
 import { OrientationRouter } from './endpoints/orientation.js'
+import { PhotosRouter } from './endpoints/photos.js'
 import { RootRouter } from './endpoints/root.js'
 import { PhotoCache } from './photo-cache/index.js'
 import { PhotoSelector } from './photo-selector.js'
@@ -29,6 +30,7 @@ export async function buildApp(
   const routers: BaseRouter[] = [
     new RootRouter(app, photoCache, photoSelector),
     new OrientationRouter(app, photoCache, photoSelector),
+    new PhotosRouter(app, photoCache),
   ]
 
   for (const router of routers) {
