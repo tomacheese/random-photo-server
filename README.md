@@ -7,6 +7,7 @@
 
 - 起動時に `photos/` を走査し、`sharp` でリサイズ・圧縮した画像を `cache/` に保存します(`cache/manifest.json` で差分管理)。
 - 起動後も `chokidar` で `photos/` を監視し、追加・変更・削除に追従して `cache/` を更新し続けます。
+- Azure File Share などのネットワークマウントではファイルシステムイベントが届かないため、`RESCAN_INTERVAL_SEC` 秒ごとに `photos/` を再走査して差分を `cache/` に反映します(`0` で無効)。
 - `photos/` は HTTP からは一切公開されません。配信されるのは常に `cache/` 内の生成物です。
 
 ## エンドポイント
@@ -35,6 +36,7 @@
 | `JPEG_QUALITY` | `82` | JPEG 品質(0〜100) |
 | `DEDUPE_WINDOW_SEC` | `60` | 同一 IP への直近重複を避ける秒数 |
 | `BUCKET_WIDTH_SEC` | `180` | `/portrait/{photoframeId}`・`/landscape/{photoframeId}` で同一画像を返す時間幅(秒)。86400 を割り切れる値のみ指定可能 |
+| `RESCAN_INTERVAL_SEC` | `300` | `photos/` を定期的に再走査する間隔(秒)。0 以上 2147483 以下の整数で、`0` を指定すると定期再走査を行わない |
 
 ## 開発
 

@@ -33,6 +33,14 @@ export interface PhotoCacheOptions {
   cacheDir: string
   maxEdgePx: number
   jpegQuality: number
+  /** photos/ を定期的に再走査する間隔(ミリ秒)。未指定または 0 の場合は再走査しない */
+  rescanIntervalMs?: number
+}
+
+interface ReconcileResult {
+  changed: boolean
+  processed: number
+  removed: number
 }
 
 /**
@@ -54,6 +62,8 @@ export class PhotoCache {
   // collapse into the minimum number of writes needed to persist the latest state
   private saveChain: Promise<void> = Promise.resolve()
   private saveRequested = false
+  private rescanQueued = false
+  private rescanTimer: NodeJS.Timeout | null = null
 
   /**
    * @param options - キャッシュ対象ディレクトリやリサイズ設定
@@ -79,15 +89,7 @@ export class PhotoCache {
     await fs.mkdir(this.options.cacheDir, { recursive: true })
     this.manifest = await this.loadManifest()
 
-    const sourceFiles = await this.scanPhotosDir()
-    const { toProcess, toRemove } = diffManifest(sourceFiles, this.manifest)
-
-    for (const file of toProcess) {
-      await this.processAndRecord(file)
-    }
-    for (const relPath of toRemove) {
-      await this.removeEntry(relPath)
-    }
+    await this.reconcile()
 
     await this.saveManifest()
     this.ready = true
@@ -97,8 +99,73 @@ export class PhotoCache {
   }
 
   /**
+   * photos/ を走査して manifest との差分をキャッシュに反映する。
+   * 走査の失敗はそのまま throw する(manifest は変更されない)。
+   * 走査後の処理で失敗した場合は、それまでの変更を保存してから throw する
+   * @returns 変更の有無と、追加・更新に成功した件数、削除した件数
+   */
+  private async reconcile(): Promise<ReconcileResult> {
+    const sourceFiles = await this.scanPhotosDir()
+    const { toProcess, toRemove } = diffManifest(sourceFiles, this.manifest)
+
+    let processed = 0
+    let removed = 0
+    try {
+      for (const file of toProcess) {
+        if (await this.processAndRecord(file)) {
+          processed++
+        }
+      }
+      for (const relPath of toRemove) {
+        await this.removeEntry(relPath)
+        removed++
+      }
+    } catch (error) {
+      try {
+        await this.saveManifest()
+      } catch (saveError) {
+        this.logger.error(
+          '❌ Failed to save manifest after rescan failure',
+          saveError as Error
+        )
+      }
+      throw error
+    }
+    return { changed: processed > 0 || removed > 0, processed, removed }
+  }
+
+  /**
+   * photos/ を再走査し、追加・変更・削除をキャッシュに反映する。
+   * ファイルシステムイベントが届かない環境(ネットワークマウントなど)向けで、
+   * watcher のイベント処理と直列に実行される。失敗してもエラーログのみで reject しない。
+   * 実行待ちの再走査が既にある場合は何もしない
+   */
+  async rescan(): Promise<void> {
+    if (this.rescanQueued) {
+      return
+    }
+    this.rescanQueued = true
+    this.enqueueEvent(async () => {
+      this.rescanQueued = false
+      try {
+        const { changed, processed, removed } = await this.reconcile()
+        if (!changed) {
+          return
+        }
+        await this.saveManifest()
+        this.logger.info(
+          `🔄 Rescan applied changes: ${processed} added or updated, ${removed} removed`
+        )
+      } catch (error) {
+        this.logger.error('❌ Failed to rescan photos', error as Error)
+      }
+    })
+    await this.eventChain
+  }
+
+  /**
    * photos/ の追加・変更・削除、および cacheDir 内ファイルの外部削除を監視し、
-   * キャッシュを差分更新し続ける
+   * キャッシュを差分更新し続ける。`rescanIntervalMs` が正の場合は定期再走査も開始する
    */
   startWatching(): void {
     this.watcher = chokidar.watch(this.options.photosDir, {
@@ -130,12 +197,26 @@ export class PhotoCache {
     this.cacheWatcher.on('error', (error: unknown) => {
       this.logger.error('❌ Cache watcher error', error as Error)
     })
+
+    const { rescanIntervalMs } = this.options
+    if (rescanIntervalMs !== undefined && rescanIntervalMs > 0) {
+      this.rescanTimer = setInterval(() => {
+        this.rescan().catch((error: unknown) => {
+          this.logger.error('❌ Unexpected rescan failure', error as Error)
+        })
+      }, rescanIntervalMs)
+      this.rescanTimer.unref()
+    }
   }
 
   /**
-   * ファイル監視を停止する
+   * ファイル監視と定期再走査を停止する。実行中の再走査の完了は待たない
    */
   async close(): Promise<void> {
+    if (this.rescanTimer) {
+      clearInterval(this.rescanTimer)
+      this.rescanTimer = null
+    }
     await this.watcher?.close()
     await this.cacheWatcher?.close()
   }
