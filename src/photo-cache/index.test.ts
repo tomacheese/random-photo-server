@@ -428,7 +428,8 @@ describe('PhotoCache periodic rescan', () => {
     let running = 0
     let maxRunning = 0
     let calls = 0
-    const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
+    const { promise: gate, resolve: release } =
+      Promise.withResolvers<undefined>()
     vi.spyOn(
       cache as unknown as { reconcile: () => Promise<unknown> },
       'reconcile'
