@@ -1,60 +1,66 @@
 # random-photo-server
 
-`photos/` 以下の画像からランダムに1枚を選び、リサイズ・圧縮した上で配信する Web サーバーです。
-`https://vrps.tomacheese.com` でホストし、VRChat ワールドに設置したフォトフレームからの表示を主な用途としています。
+A web server that picks a random image from `photos/`, resizes and compresses it, and serves it.
+It is hosted at `https://vrps.tomacheese.com` and is mainly used by photo frames placed in VRChat worlds.
 
-## 仕組み
+## How it works
 
-- 起動時に `photos/` を走査し、`sharp` でリサイズ・圧縮した画像を `cache/` に保存します(`cache/manifest.json` で差分管理)。
-- 起動後も `chokidar` で `photos/` を監視し、追加・変更・削除に追従して `cache/` を更新し続けます。
-- Azure File Share などのネットワークマウントではファイルシステムイベントが届かないため、`RESCAN_INTERVAL_SEC` 秒ごとに `photos/` を再走査して差分を `cache/` に反映します(`0` で無効)。
-- `photos/` は HTTP からは一切公開されません。配信されるのは常に `cache/` 内の生成物です。
+- On startup, the server scans `photos/` and stores resized, compressed images (via `sharp`) in `cache/`. `cache/manifest.json` tracks what has already been processed.
+- After startup, it keeps watching `photos/` with `chokidar` and updates `cache/` when photos are added, changed or removed.
+- Network mounts such as Azure File Share do not deliver filesystem events, so the server also rescans `photos/` every `RESCAN_INTERVAL_SEC` seconds and applies the differences to `cache/` (`0` disables this).
+- `photos/` is never exposed over HTTP. Only generated files in `cache/` are served.
 
-## エンドポイント
+## Endpoints
 
-| メソッド | パス | 説明 |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/` | キャッシュ済み画像からランダムに1枚選び、画像バイナリを返す。リクエスト元 IP ごとに直近の重複を避ける |
-| GET | `/portrait` | キャッシュ済み画像のうち縦長のものからランダムに1枚選び、画像バイナリを返す。アスペクト比が 0.95〜1.05 の正方形に近い画像は対象外。リクエスト元 IP ごとの直近重複回避は `/` と共有する |
-| GET | `/landscape` | キャッシュ済み画像のうち横長のものからランダムに1枚選び、画像バイナリを返す。アスペクト比が 0.95〜1.05 の正方形に近い画像は対象外。リクエスト元 IP ごとの直近重複回避は `/` と共有する |
-| GET | `/portrait/{photoframeId}` | 縦長画像のうち1枚を、リクエスト時刻と `photoframeId`(非負整数)から決定論的に選び返す。`BUCKET_WIDTH_SEC` 秒単位のバケットに時刻を切り捨てるため、同一バケット・同一 `photoframeId` であれば常に同じ画像になる。複数のフォトフレームで表示を同期させる用途 |
-| GET | `/landscape/{photoframeId}` | `/portrait/{photoframeId}` の横長版 |
-| GET | `/photos` | キャッシュ済み画像のサムネイル一覧を HTML で表示する。`?orientation=portrait` または `?orientation=landscape` で絞り込み可能 |
-| GET | `/photos/:id` | `id`(`/photos` が表示する画像の識別子)を指定して該当する画像バイナリを1枚返す |
-| GET | `/health` | キャッシュ準備状況と枚数を返すヘルスチェック |
+| GET | `/` | Returns a random cached image. Avoids recently served photos per client IP |
+| GET | `/portrait` | Returns a random portrait image. Near-square images (aspect ratio 0.95 to 1.05) are excluded. The per-IP recent-photo avoidance is shared with `/` |
+| GET | `/landscape` | Returns a random landscape image. Near-square images (aspect ratio 0.95 to 1.05) are excluded. The per-IP recent-photo avoidance is shared with `/` |
+| GET | `/portrait/{photoframeId}` | Returns one portrait image chosen deterministically from the request time and `photoframeId` (a non-negative integer). The time is floored to a `BUCKET_WIDTH_SEC` bucket, so the same `photoframeId` gets the same image within a bucket. Used to keep multiple photo frames in sync |
+| GET | `/landscape/{photoframeId}` | Landscape version of `/portrait/{photoframeId}` |
+| GET | `/photos` | HTML page listing thumbnails of the cached images. Filter with `?orientation=portrait` or `?orientation=landscape` |
+| GET | `/photos/:id` | Returns the image whose identifier (as shown by `/photos`) is `id` |
+| GET | `/health` | Health check returning whether the cache is ready and the number of cached photos |
 
-## 環境変数
+Image endpoints respond with `503` while the cache is not ready or has no matching photos.
 
-| 変数名 | 既定値 | 説明 |
+## Environment variables
+
+| Name | Default | Description |
 |---|---|---|
-| `API_HOST` | `0.0.0.0` | 待受ホスト |
-| `API_PORT` | `80` | 待受ポート |
-| `PHOTOS_DIR` | `/photos` | 元画像ディレクトリ |
-| `CACHE_DIR` | `/data/cache` | キャッシュディレクトリ |
-| `MAX_EDGE_PX` | `2048` | リサイズ後の長辺の最大ピクセル数 |
-| `OUTPUT_FORMAT` | `jpeg` | 出力フォーマット(現状 `jpeg` のみ対応) |
-| `JPEG_QUALITY` | `82` | JPEG 品質(0〜100) |
-| `DEDUPE_WINDOW_SEC` | `60` | 同一 IP への直近重複を避ける秒数 |
-| `BUCKET_WIDTH_SEC` | `180` | `/portrait/{photoframeId}`・`/landscape/{photoframeId}` で同一画像を返す時間幅(秒)。86400 を割り切れる値のみ指定可能 |
-| `RESCAN_INTERVAL_SEC` | `300` | `photos/` を定期的に再走査する間隔(秒)。0 以上 2147483 以下の整数で、`0` を指定すると定期再走査を行わない |
+| `API_HOST` | `0.0.0.0` | Host to listen on |
+| `API_PORT` | `80` | Port to listen on |
+| `PHOTOS_DIR` | `/photos` | Directory of source images |
+| `CACHE_DIR` | `/data/cache` | Cache directory |
+| `MAX_EDGE_PX` | `2048` | Maximum length in pixels of the long edge after resizing |
+| `OUTPUT_FORMAT` | `jpeg` | Output format (only `jpeg` is supported; any other value stops startup with an error) |
+| `JPEG_QUALITY` | `82` | JPEG quality (0 to 100) |
+| `DEDUPE_WINDOW_SEC` | `60` | Seconds during which a photo is not served again to the same IP |
+| `BUCKET_WIDTH_SEC` | `180` | Time window in seconds during which `/portrait/{photoframeId}` and `/landscape/{photoframeId}` return the same image. Must be a positive divisor of 86400, otherwise startup fails |
+| `RESCAN_INTERVAL_SEC` | `300` | Interval in seconds for rescanning `photos/`. An integer from 0 to 2147483 (no sign, leading zeros or fraction); `0` disables periodic rescans. Invalid values stop startup with an error |
 
-## 開発
+## Development
+
+The Node.js version is pinned in `.node-version`, and the package manager is pnpm.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-## Docker での実行
+By default the server reads `/photos` and writes `/data/cache`; override `PHOTOS_DIR` and `CACHE_DIR` for local runs.
+
+## Running with Docker
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-`photos/` はホスト側のディレクトリをそのまま読み取り専用でマウントします。写真の追加・変更・削除はコンテナを再起動しなくても自動的に反映されます。
+The server is published on port 3000 of the host. The host `photos/` directory is mounted read-only, and `cache/` is mounted for the generated files. Adding, changing or removing photos is picked up without restarting the container.
 
-## Lint / テスト
+## Lint and tests
 
 ```bash
 pnpm lint

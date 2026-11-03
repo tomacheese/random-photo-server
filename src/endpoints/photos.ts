@@ -9,7 +9,7 @@ import { CachedEntry } from '../photo-cache/index.js'
 import { getPhotoOrientation, PhotoOrientation } from '../photo-orientation.js'
 
 /**
- * 表示用に向きを付与したキャッシュ済み画像1件分の情報
+ * A cached photo paired with its orientation, for display.
  */
 interface PhotoListItem {
   entry: CachedEntry
@@ -17,10 +17,11 @@ interface PhotoListItem {
 }
 
 /**
- * 埋め込む値は id(内部生成のハッシュ)・width/height(数値)・orientation(固定文字列)のみで、いずれも外部入力をそのまま埋め込むものではないため追加のエスケープ処理は行わない
+ * Renders the thumbnail grid page.
+ * Interpolated values are internal (hash file name, numbers, fixed strings), so no escaping is needed.
  *
- * @param items 表示対象のキャッシュ済み画像一覧(向き判定済み)
- * @returns サムネイルグリッドを表示する HTML 文字列
+ * @param items Cached photos to show, with orientation already determined
+ * @returns HTML string of the thumbnail grid
  */
 function renderPhotoListHtml(items: PhotoListItem[]): string {
   const listItems = items
@@ -53,7 +54,7 @@ ${listItems}
 }
 
 /**
- * キャッシュ済み画像の一覧表示(HTML)・個別取得を提供するルーター
+ * Router for the HTML photo list (`/photos`) and single-photo retrieval (`/photos/:id`).
  */
 export class PhotosRouter extends BaseRouter {
   private readonly photoCache: PhotoCacheReader
@@ -67,7 +68,7 @@ export class PhotosRouter extends BaseRouter {
     this.fastify.get('/photos', this.routeGetPhotoList.bind(this))
     this.fastify.get(
       '/photos/:id',
-      // CodeQL js/missing-rate-limiting 対応: ファイル読み取りを伴うため IP ごとに制限する
+      // Rate limit per IP because this route reads files
       { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
       this.routeGetPhotoById.bind(this)
     )

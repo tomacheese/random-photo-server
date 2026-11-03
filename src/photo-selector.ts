@@ -1,5 +1,5 @@
 /**
- * PhotoSelector が選択できる候補の最低条件
+ * Minimum shape of a candidate that PhotoSelector can pick.
  */
 export interface SelectableItem {
   id: string
@@ -11,7 +11,7 @@ interface RecentSelection {
 }
 
 /**
- * PhotoSelector の構築オプション
+ * Options for PhotoSelector.
  */
 export interface PhotoSelectorOptions {
   dedupeWindowMs: number
@@ -19,8 +19,9 @@ export interface PhotoSelectorOptions {
 }
 
 /**
- * 候補からランダムに1件選択する。直近 dedupeWindowMs 以内にそのクライアントへ
- * 配信済みの候補は除外するが、除外の結果候補が0件になる場合は重複を許容する
+ * Picks one candidate at random. Candidates already served to the same client
+ * within the last dedupeWindowMs are excluded, unless that would leave no
+ * candidates, in which case repeats are allowed.
  */
 export class PhotoSelector {
   private readonly dedupeWindowMs: number
@@ -33,12 +34,12 @@ export class PhotoSelector {
   }
 
   /**
-   * candidates からランダムに1件選び、選択履歴に記録する
+   * Picks one candidate at random and records it in the client's history.
    *
-   * @param candidates 選択候補の一覧
-   * @param clientKey クライアントを識別するキー(通常はリクエスト元 IP)
-   * @param now 現在時刻(エポックミリ秒)
-   * @returns 選択された候補。candidates が空の場合は null
+   * @param candidates Candidates to choose from
+   * @param clientKey Key identifying the client (normally the request IP)
+   * @param now Current time in epoch milliseconds
+   * @returns The picked candidate, or null if candidates is empty
    */
   pick<T extends SelectableItem>(
     candidates: T[],

@@ -8,8 +8,7 @@ import { PhotoSelector, SelectableItem } from '../photo-selector.js'
 import { PhotoCacheReader } from './root.js'
 
 /**
- * PhotoSelector に渡す選択候補。
- * CachedEntry に SelectableItem の id を付与したもの(id には cacheFileName を用いる)
+ * Selection candidate: a CachedEntry with a SelectableItem id (the id is the cacheFileName).
  */
 export type Candidate = CachedEntry & SelectableItem
 
@@ -33,14 +32,14 @@ async function sendPhoto(
 }
 
 /**
- * candidates からランダムに1件選び、画像バイナリをレスポンスとして送信する。
- * candidates が空、または選択に失敗した場合は 503 を返す
+ * Picks one candidate at random and sends the image bytes as the response.
+ * Responds with 503 if candidates is empty or nothing could be picked.
  *
- * @param photoCache キャッシュディレクトリの取得に使う PhotoCache
- * @param photoSelector 画像選択に使う PhotoSelector
- * @param candidates 選択候補の一覧(呼び出し側が向き等でフィルタ済みのもの)
- * @param request Fastify のリクエストオブジェクト(クライアント識別に使用)
- * @param reply Fastify のレスポンスオブジェクト
+ * @param photoCache Provides the cache directory
+ * @param photoSelector Selector used for the pick
+ * @param candidates Candidates, already filtered (e.g. by orientation) by the caller
+ * @param request Fastify request (its IP identifies the client)
+ * @param reply Fastify reply
  */
 export async function servePickedPhoto(
   photoCache: PhotoCacheReader,
@@ -58,15 +57,16 @@ export async function servePickedPhoto(
 }
 
 /**
- * candidates から (bucketIndex, photoframeId) の組み合わせに基づき決定論的に1件選び、画像バイナリをレスポンスとして送信する。
- * candidates が空の場合は 503 を返す。同一バケット内であれば複数フォトフレームから同時に呼ばれても同じ画像を返す
+ * Deterministically picks one candidate from the (bucketIndex, photoframeId)
+ * pair and sends the image bytes as the response. Responds with 503 if
+ * candidates is empty. Within one bucket, the same photoframeId always gets the same photo.
  *
- * @param photoCache キャッシュディレクトリの取得に使う PhotoCache
- * @param candidates 選択候補の一覧(呼び出し側が向き等でフィルタ済みのもの)
- * @param bucketWidthSeconds 同一画像を返す時間幅(秒)
- * @param photoframeId フォトフレームを識別する非負整数
- * @param nowMs 現在時刻(エポックミリ秒)
- * @param reply Fastify のレスポンスオブジェクト
+ * @param photoCache Provides the cache directory
+ * @param candidates Candidates, already filtered (e.g. by orientation) by the caller
+ * @param bucketWidthSeconds Time window (seconds) during which the same photo is returned
+ * @param photoframeId Non-negative integer identifying the photo frame
+ * @param nowMs Current time in epoch milliseconds
+ * @param reply Fastify reply
  */
 export async function serveDeterministicPhoto(
   photoCache: PhotoCacheReader,

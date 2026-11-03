@@ -15,7 +15,7 @@ type EnvironmentName = keyof typeof defaultEnvironment
 const environmentNames = Object.keys(defaultEnvironment) as EnvironmentName[]
 
 /**
- * 環境変数を一元管理するオブジェクト。process.env に値がなければ既定値を使う
+ * Central environment configuration. Falls back to the default when process.env has no value.
  */
 export const ENV = Object.fromEntries(
   environmentNames.map((name) => [
@@ -28,10 +28,10 @@ export const ENV = Object.fromEntries(
 const MAX_RESCAN_INTERVAL_SEC = 2_147_483
 
 /**
- * RESCAN_INTERVAL_SEC の値を検証して秒数に変換する
- * @param value - 環境変数の文字列。先頭ゼロ・符号・小数を含まない 10 進整数であること
- * @returns 再走査間隔(秒)。0 は定期再走査の無効を表す
- * @throws 0 以上 2147483 以下の整数表記でない場合
+ * Validates RESCAN_INTERVAL_SEC and converts it to seconds.
+ * @param value - Raw environment value; must be a decimal integer without sign, leading zeros or fraction
+ * @returns Rescan interval in seconds; 0 disables periodic rescans
+ * @throws If the value is not an integer between 0 and 2147483
  */
 export function parseRescanIntervalSec(value: string): number {
   const seconds = Number.parseInt(value, 10)

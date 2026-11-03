@@ -5,7 +5,7 @@ import { CachedEntry } from '../photo-cache/index.js'
 import { PhotoSelector } from '../photo-selector.js'
 
 /**
- * RootRouter が必要とする PhotoCache の最小インターフェース
+ * Minimal PhotoCache interface that the routers depend on (replaceable with a fake in tests).
  */
 export interface PhotoCacheReader {
   isReady(): boolean
@@ -15,7 +15,7 @@ export interface PhotoCacheReader {
 }
 
 /**
- * ルートエンドポイント(ランダム画像配信・ヘルスチェック)を提供するルーター
+ * Router for the root endpoints: random photo (`/`) and health check (`/health`).
  */
 export class RootRouter extends BaseRouter {
   private readonly photoCache: PhotoCacheReader
