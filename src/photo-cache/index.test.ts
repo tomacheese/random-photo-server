@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PhotoCache } from './index.js'
 
 async function writeTestPng(
@@ -281,6 +281,219 @@ describe('PhotoCache', () => {
 
       expect(cache.getCount()).toBe(0)
       expect(cache.getCachedEntries()).toEqual([])
+    })
+  })
+})
+
+describe('PhotoCache periodic rescan', () => {
+  let photosDir: string
+  let cacheDir: string
+  const caches: PhotoCache[] = []
+
+  beforeEach(async () => {
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), 'photo-rescan-'))
+    photosDir = path.join(base, 'photos')
+    cacheDir = path.join(base, 'cache')
+    await fs.mkdir(photosDir, { recursive: true })
+  })
+
+  afterEach(async () => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    const toClose = [...caches]
+    caches.length = 0
+    await Promise.all(toClose.map((cache) => cache.close()))
+    await fs.rm(path.dirname(photosDir), { recursive: true, force: true })
+  })
+
+  function createCache(rescanIntervalMs?: number): PhotoCache {
+    const cache = new PhotoCache({
+      photosDir,
+      cacheDir,
+      maxEdgePx: 2048,
+      jpegQuality: 82,
+      rescanIntervalMs,
+    })
+    caches.push(cache)
+    return cache
+  }
+
+  async function readManifest(): Promise<Record<string, unknown>> {
+    return JSON.parse(
+      await fs.readFile(path.join(cacheDir, 'manifest.json'), 'utf8')
+    ) as Record<string, unknown>
+  }
+
+  it('picks up an added photo without any watcher event', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = createCache()
+    await cache.init()
+
+    await writeTestPng(path.join(photosDir, 'b.png'), 200, 100)
+    await cache.rescan()
+
+    expect(cache.getCount()).toBe(2)
+    const added = cache.getCachedEntries().find((e) => e.relPath === 'b.png')
+    expect(added).toMatchObject({ width: 200, height: 100 })
+    const stat = await fs.stat(path.join(cacheDir, added?.cacheFileName ?? ''))
+    expect(stat.isFile()).toBe(true)
+    expect(
+      Object.keys(await readManifest()).toSorted((a, b) => a.localeCompare(b))
+    ).toEqual(['a.png', 'b.png'])
+  })
+
+  it('regenerates a changed photo and drops a removed photo', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    await writeTestPng(path.join(photosDir, 'b.png'), 200, 200)
+    const cache = createCache()
+    await cache.init()
+    const removed = cache.getCachedEntries().find((e) => e.relPath === 'b.png')
+
+    await writeTestPng(path.join(photosDir, 'a.png'), 800, 600)
+    await fs.rm(path.join(photosDir, 'b.png'))
+    await cache.rescan()
+
+    expect(cache.getCachedEntries()).toEqual([
+      expect.objectContaining({ relPath: 'a.png', width: 800, height: 600 }),
+    ])
+    await expect(
+      fs.stat(path.join(cacheDir, removed?.cacheFileName ?? ''))
+    ).rejects.toThrow()
+  })
+
+  it('does not write anything when nothing changed', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = createCache()
+    await cache.init()
+    const entry = cache.getCachedEntries()[0]
+    const cacheStatBefore = await fs.stat(
+      path.join(cacheDir, entry.cacheFileName)
+    )
+    const writeFile = vi.spyOn(fs, 'writeFile')
+    const rename = vi.spyOn(fs, 'rename')
+
+    await cache.rescan()
+
+    expect(writeFile).not.toHaveBeenCalled()
+    expect(rename).not.toHaveBeenCalled()
+    const cacheStatAfter = await fs.stat(
+      path.join(cacheDir, entry.cacheFileName)
+    )
+    expect(cacheStatAfter.mtimeMs).toBe(cacheStatBefore.mtimeMs)
+  })
+
+  it('keeps the manifest and cache files when the photos directory is unreadable', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = createCache()
+    await cache.init()
+    const manifestBefore = await fs.readFile(
+      path.join(cacheDir, 'manifest.json'),
+      'utf8'
+    )
+    await fs.rm(photosDir, { recursive: true })
+
+    await expect(cache.rescan()).resolves.toBeUndefined()
+
+    expect(cache.getCount()).toBe(1)
+    expect(
+      await fs.readFile(path.join(cacheDir, 'manifest.json'), 'utf8')
+    ).toBe(manifestBefore)
+    const entry = cache.getCachedEntries()[0]
+    const stat = await fs.stat(path.join(cacheDir, entry.cacheFileName))
+    expect(stat.isFile()).toBe(true)
+  })
+
+  it('saves the changes made so far when a later step fails, without rejecting', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    await writeTestPng(path.join(photosDir, 'b.png'), 200, 200)
+    const cache = createCache()
+    await cache.init()
+
+    await writeTestPng(path.join(photosDir, 'c.png'), 100, 100)
+    await fs.rm(path.join(photosDir, 'b.png'))
+    vi.spyOn(fs, 'rm').mockRejectedValueOnce(new Error('rm failed'))
+
+    await expect(cache.rescan()).resolves.toBeUndefined()
+
+    expect(
+      Object.keys(await readManifest()).toSorted((a, b) => a.localeCompare(b))
+    ).toEqual(['a.png', 'b.png', 'c.png'])
+  })
+
+  it('never runs two reconciles at once and queues at most one rescan', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = createCache()
+    await cache.init()
+
+    let running = 0
+    let maxRunning = 0
+    let calls = 0
+    const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
+    vi.spyOn(
+      cache as unknown as { reconcile: () => Promise<unknown> },
+      'reconcile'
+    ).mockImplementation(async () => {
+      calls++
+      running++
+      maxRunning = Math.max(maxRunning, running)
+      await gate
+      running--
+      return { changed: false, processed: 0, removed: 0 }
+    })
+
+    const first = cache.rescan()
+    const skippedWhileQueued1 = cache.rescan()
+    const skippedWhileQueued2 = cache.rescan()
+    await vi.waitFor(() => {
+      expect(calls).toBe(1)
+    })
+    const second = cache.rescan()
+    const skippedAgain = cache.rescan()
+    release(undefined)
+    await Promise.all([
+      first,
+      skippedWhileQueued1,
+      skippedWhileQueued2,
+      second,
+      skippedAgain,
+    ])
+
+    expect(calls).toBe(2)
+    expect(maxRunning).toBe(1)
+  })
+
+  describe('timer', () => {
+    it('does not start a timer when no interval is configured', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+      await fs.mkdir(cacheDir, { recursive: true })
+
+      for (const interval of [undefined, 0]) {
+        const cache = createCache(interval)
+        cache.startWatching()
+      }
+
+      expect(setIntervalSpy).not.toHaveBeenCalled()
+    })
+
+    it('rescans on every tick and stops after close()', async () => {
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+      const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+      await fs.mkdir(cacheDir, { recursive: true })
+      const cache = createCache(1000)
+      const rescan = vi.spyOn(cache, 'rescan').mockResolvedValue()
+
+      cache.startWatching()
+      expect(setIntervalSpy).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(1)
+
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(rescan).toHaveBeenCalledTimes(3)
+
+      await cache.close()
+      expect(vi.getTimerCount()).toBe(0)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(rescan).toHaveBeenCalledTimes(3)
     })
   })
 })

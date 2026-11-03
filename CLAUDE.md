@@ -39,6 +39,7 @@
 - `photos/` は HTTP から直接公開しない。配信は必ず `cache/` 内の生成物経由で行う
 - `OUTPUT_FORMAT` は現状 `jpeg` のみ対応。それ以外の値が指定された場合は起動時にエラーで停止させる(黙って無視しない)
 - `BUCKET_WIDTH_SEC`(デフォルト `180`)は正の整数かつ `86400` の約数である必要がある。満たさない場合は起動時にエラーで停止させる(黙って無視しない)
+- `RESCAN_INTERVAL_SEC`(デフォルト `300`)は `0` 以上 `2147483` 以下の整数(符号・先頭ゼロ・小数点なしの10進表記)である必要がある。`0` は定期再走査の無効化を意味する。満たさない場合は起動時にエラーで停止させる(黙って無視しない)。検証は `src/environments.ts` の `parseRescanIntervalSec` で行い、`src/main.ts` から呼び出す
 
 ## 開発コマンド
 
@@ -66,10 +67,10 @@ pnpm fix
 
 - `src/main.ts`: エントリポイント。`PhotoCache` の初期化・監視開始、`PhotoSelector` の生成、Fastify サーバーの起動を行う
 - `src/server.ts`: Fastify アプリケーションの構築(`buildApp`)
-- `src/environments.ts`: 環境変数の管理(`ENV` オブジェクト)
+- `src/environments.ts`: 環境変数の管理(`ENV` オブジェクト)と、`RESCAN_INTERVAL_SEC` の検証を行う `parseRescanIntervalSec`
 - `src/photo-cache/manifest.ts`: `photos/` の走査結果と `cache/manifest.json` の差分判定ロジック(純粋関数)
 - `src/photo-cache/process.ts`: `sharp` を用いた画像リサイズ・圧縮処理
-- `src/photo-cache/index.ts`: `PhotoCache` クラス。`cache/` の初期構築・`chokidar` による監視・差分更新を担う
+- `src/photo-cache/index.ts`: `PhotoCache` クラス。`cache/` の初期構築・`chokidar` による監視・差分更新を担う。ネットワークマウント(Azure File Share 等)では `chokidar` がイベントを受け取れないため、`rescan()` による `photos/` の定期再走査(`rescanIntervalMs` オプション、`startWatching()` で開始し `close()` で停止)も行う
 - `src/photo-selector.ts`: `PhotoSelector` クラス。IP 単位で直近配信済み画像を避けつつランダム選択する
 - `src/photo-orientation.ts`: 画像の幅・高さからアスペクト比に基づき向き(`portrait`/`landscape`/`square`)を判定する純粋関数 `getPhotoOrientation`
 - `src/deterministic-selector.ts`: タイムスタンプを `BUCKET_WIDTH_SEC` 秒単位のバケツに区切って決定的に写真を選択する純粋関数 `getBucketIndex`/`pickDeterministic`

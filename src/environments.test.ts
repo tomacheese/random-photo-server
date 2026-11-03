@@ -27,6 +27,7 @@ describe('ENV', () => {
       JPEG_QUALITY: '82',
       DEDUPE_WINDOW_SEC: '60',
       BUCKET_WIDTH_SEC: '180',
+      RESCAN_INTERVAL_SEC: '300',
     })
   })
 
@@ -40,4 +41,29 @@ describe('ENV', () => {
     expect(ENV.MAX_EDGE_PX).toBe('1024')
     expect(ENV.API_HOST).toBe('0.0.0.0')
   })
+})
+
+describe('parseRescanIntervalSec', () => {
+  it.each([
+    ['0', 0],
+    ['300', 300],
+    ['2147483', 2_147_483],
+  ])('returns %s as %d', async (value, expected) => {
+    const { parseRescanIntervalSec } = await import('./environments.js')
+
+    expect(parseRescanIntervalSec(value)).toBe(expected)
+  })
+
+  it.each(['-1', '1.5', 'abc', '', '010', '2147484'])(
+    'rejects "%s" with a descriptive error',
+    async (value) => {
+      const { parseRescanIntervalSec } = await import('./environments.js')
+
+      expect(() => parseRescanIntervalSec(value)).toThrow(
+        new Error(
+          `Invalid RESCAN_INTERVAL_SEC: "${value}" (must be an integer between 0 and 2147483)`
+        )
+      )
+    }
+  )
 })

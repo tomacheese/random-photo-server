@@ -1,5 +1,5 @@
 import { Logger } from '@book000/node-utils'
-import { ENV } from './environments.js'
+import { ENV, parseRescanIntervalSec } from './environments.js'
 import { PhotoCache } from './photo-cache/index.js'
 import { PhotoSelector } from './photo-selector.js'
 import { buildApp } from './server.js'
@@ -25,9 +25,12 @@ async function main() {
     )
   }
 
+  const rescanIntervalSeconds = parseRescanIntervalSec(ENV.RESCAN_INTERVAL_SEC)
+
   const logger = Logger.configure('main')
 
   const photoCache = new PhotoCache({
+    rescanIntervalMs: rescanIntervalSeconds * 1000,
     photosDir: ENV.PHOTOS_DIR,
     cacheDir: ENV.CACHE_DIR,
     maxEdgePx: Number.parseInt(ENV.MAX_EDGE_PX, 10),
