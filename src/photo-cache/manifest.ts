@@ -1,7 +1,7 @@
 import { PhotoFormat } from './process.js'
 
 /**
- * manifest.json に保存する、キャッシュ済み画像1件分の情報
+ * One cached photo as stored in manifest.json.
  */
 export interface ManifestEntry {
   hash: string
@@ -12,12 +12,12 @@ export interface ManifestEntry {
 }
 
 /**
- * photos/ からの相対パス(POSIX 区切り)をキーとした manifest 全体
+ * The whole manifest, keyed by path relative to photos/ (POSIX separators).
  */
 export type Manifest = Record<string, ManifestEntry>
 
 /**
- * photos/ を走査して得られる、処理前の元ファイル情報
+ * An unprocessed source file found by scanning photos/.
  */
 export interface SourceFile {
   relPath: string
@@ -26,7 +26,7 @@ export interface SourceFile {
 }
 
 /**
- * 差分判定の結果
+ * Result of comparing a scan with the manifest.
  */
 export interface ManifestDiff {
   toProcess: SourceFile[]
@@ -34,23 +34,23 @@ export interface ManifestDiff {
 }
 
 /**
- * ソースファイルの size と mtimeMs から、キャッシュ判定用のハッシュ文字列を算出する
+ * Computes the change-detection hash string from a source file's size and mtimeMs.
  *
- * @param size ファイルサイズ(バイト)
- * @param mtimeMs 最終更新時刻(エポックミリ秒)
- * @returns 判定用ハッシュ文字列
+ * @param size File size in bytes
+ * @param mtimeMs Last modified time in epoch milliseconds
+ * @returns Hash string used to detect changes
  */
 export function computeSourceHash(size: number, mtimeMs: number): string {
   return `${size}-${Math.round(mtimeMs)}`
 }
 
 /**
- * 現在の photos/ 走査結果と manifest を比較し、再処理が必要なファイルと
- * 削除すべき manifest エントリを求める
+ * Compares the current photos/ scan with the manifest to find files that need
+ * (re)processing and manifest entries that should be removed.
  *
- * @param sourceFiles 現在 photos/ に存在するファイルの一覧
- * @param manifest 直前まで保持していた manifest
- * @returns 再処理対象と削除対象の一覧
+ * @param sourceFiles Files currently in photos/
+ * @param manifest The manifest as of the previous scan
+ * @returns Files to process and entries to remove
  */
 export function diffManifest(
   sourceFiles: SourceFile[],
@@ -89,11 +89,10 @@ function isManifestEntry(value: unknown): value is ManifestEntry {
 }
 
 /**
- * 未検証の値(manifest.json をパースした結果など)が Manifest として
- * 妥当な形状を持っているかどうかを判定する
+ * Checks whether an unvalidated value (e.g. parsed manifest.json) has the shape of a Manifest.
  *
- * @param value 検証対象の値
- * @returns value が Manifest として妥当な形状であれば true
+ * @param value Value to check
+ * @returns true if value is a well-formed Manifest
  */
 export function isValidManifest(value: unknown): value is Manifest {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {

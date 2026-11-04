@@ -1,12 +1,12 @@
 import sharp from 'sharp'
 
 /**
- * 配信可能な画像フォーマット。現状は jpeg のみ対応
+ * Servable image format. Only jpeg is currently supported.
  */
 export type PhotoFormat = 'jpeg'
 
 /**
- * 画像リサイズ・圧縮のオプション
+ * Options for image resizing and compression.
  */
 export interface ProcessImageOptions {
   maxEdgePx: number
@@ -14,7 +14,7 @@ export interface ProcessImageOptions {
 }
 
 /**
- * 画像リサイズ・圧縮の結果
+ * Result of image resizing and compression.
  */
 export interface ProcessImageResult {
   width: number
@@ -23,13 +23,13 @@ export interface ProcessImageResult {
 }
 
 /**
- * 画像を長辺 maxEdgePx に収まるようリサイズ(拡大はしない)し、
- * JPEG として outputPath に書き出す
+ * Resizes an image to fit within maxEdgePx on its long edge (never enlarging)
+ * and writes it to outputPath as JPEG.
  *
- * @param inputPath 元画像のパス
- * @param outputPath 書き出し先のパス
- * @param options リサイズ・圧縮のオプション
- * @returns 書き出した画像の幅・高さ・フォーマット
+ * @param inputPath Path of the source image
+ * @param outputPath Path to write to
+ * @param options Resize and compression options
+ * @returns Width, height and format of the written image
  */
 export async function processImage(
   inputPath: string,

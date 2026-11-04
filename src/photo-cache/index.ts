@@ -15,7 +15,7 @@ import { PhotoFormat, processImage } from './process.js'
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp'])
 
 /**
- * 配信可能な、キャッシュ済み画像 1 件分の情報
+ * One servable cached photo.
  */
 export interface CachedEntry {
   relPath: string
@@ -26,14 +26,14 @@ export interface CachedEntry {
 }
 
 /**
- * PhotoCache の構築オプション
+ * Options for PhotoCache.
  */
 export interface PhotoCacheOptions {
   photosDir: string
   cacheDir: string
   maxEdgePx: number
   jpegQuality: number
-  /** photos/ を定期的に再走査する間隔(ミリ秒)。未指定または 0 の場合は再走査しない */
+  /** Interval (ms) for periodically rescanning photos/. No periodic rescan if omitted or 0 */
   rescanIntervalMs?: number
 }
 
@@ -44,8 +44,8 @@ interface ReconcileResult {
 }
 
 /**
- * photos/ を走査してリサイズ・圧縮済み画像を cacheDir に保持し、
- * photos/ の変更を監視して差分更新するクラス
+ * Keeps resized, compressed copies of photos/ in cacheDir and updates them
+ * incrementally as photos/ changes.
  */
 export class PhotoCache {
   private readonly logger = Logger.configure('PhotoCache')
@@ -65,9 +65,6 @@ export class PhotoCache {
   private rescanQueued = false
   private rescanTimer: NodeJS.Timeout | null = null
 
-  /**
-   * @param options - キャッシュ対象ディレクトリやリサイズ設定
-   */
   constructor(options: PhotoCacheOptions) {
     this.options = options
   }
@@ -82,8 +79,8 @@ export class PhotoCache {
   }
 
   /**
-   * photos/ を走査し、manifest との差分に基づいて cacheDir を最新化する。
-   * 配信を開始する前に必ず一度完了させること
+   * Scans photos/ and brings cacheDir up to date with the manifest.
+   * Must complete once before serving starts.
    */
   async init(): Promise<void> {
     await fs.mkdir(this.options.cacheDir, { recursive: true })
@@ -99,10 +96,10 @@ export class PhotoCache {
   }
 
   /**
-   * photos/ を走査して manifest との差分をキャッシュに反映する。
-   * 走査の失敗はそのまま throw する(manifest は変更されない)。
-   * 走査後の処理で失敗した場合は、それまでの変更を保存してから throw する
-   * @returns 変更の有無と、追加・更新に成功した件数、削除した件数
+   * Scans photos/ and applies the diff against the manifest to the cache.
+   * A scan failure is thrown as is (the manifest is left unchanged).
+   * If processing after the scan fails, the changes made so far are saved before rethrowing.
+   * @returns Whether anything changed, plus the counts of added or updated and removed photos
    */
   private async reconcile(): Promise<ReconcileResult> {
     const sourceFiles = await this.scanPhotosDir()
@@ -135,10 +132,10 @@ export class PhotoCache {
   }
 
   /**
-   * photos/ を再走査し、追加・変更・削除をキャッシュに反映する。
-   * ファイルシステムイベントが届かない環境(ネットワークマウントなど)向けで、
-   * watcher のイベント処理と直列に実行される。失敗してもエラーログのみで reject しない。
-   * 実行待ちの再走査が既にある場合は何もしない
+   * Rescans photos/ and applies additions, changes and removals to the cache.
+   * Meant for environments where filesystem events never arrive (e.g. network mounts).
+   * Runs serialized with watcher event handling. Failures are only logged, never rejected.
+   * Does nothing if a rescan is already queued.
    */
   async rescan(): Promise<void> {
     if (this.rescanQueued) {
@@ -164,8 +161,9 @@ export class PhotoCache {
   }
 
   /**
-   * photos/ の追加・変更・削除、および cacheDir 内ファイルの外部削除を監視し、
-   * キャッシュを差分更新し続ける。`rescanIntervalMs` が正の場合は定期再走査も開始する
+   * Watches photos/ for additions, changes and removals, and cacheDir for
+   * external deletions, updating the cache incrementally.
+   * Also starts periodic rescans when `rescanIntervalMs` is positive.
    */
   startWatching(): void {
     this.watcher = chokidar.watch(this.options.photosDir, {
@@ -210,7 +208,7 @@ export class PhotoCache {
   }
 
   /**
-   * ファイル監視と定期再走査を停止する。実行中の再走査の完了は待たない
+   * Stops file watching and periodic rescans. Does not wait for a running rescan to finish.
    */
   async close(): Promise<void> {
     if (this.rescanTimer) {
@@ -228,32 +226,25 @@ export class PhotoCache {
   }
 
   /**
-   * 初回走査が完了しているかどうか
-   * @returns 初回走査が完了していれば true
+   * Whether the initial scan has completed.
    */
   isReady(): boolean {
     return this.ready
   }
 
-  /**
-   * 現在キャッシュ済みの写真枚数
-   * @returns キャッシュ済み写真の枚数
-   */
   getCount(): number {
     return Object.keys(this.manifest).length
   }
 
   /**
-   * キャッシュディレクトリの絶対パス
-   * @returns キャッシュディレクトリのパス
+   * Path of the cache directory.
    */
   getCacheDir(): string {
     return this.options.cacheDir
   }
 
   /**
-   * 現在配信可能なキャッシュ済み画像の一覧
-   * @returns キャッシュ済み画像のエントリ一覧
+   * Cached photos that can currently be served.
    */
   getCachedEntries(): CachedEntry[] {
     this.cachedEntries ??= Object.entries(this.manifest).map(
@@ -318,25 +309,25 @@ export class PhotoCache {
   }
 
   /**
-   * cacheDir 内のキャッシュファイルが外部から削除されたときに、元画像が
-   * 残っていれば再生成し、残っていなければ manifest エントリを削除する
-   * @param filePath 削除されたキャッシュファイルのパス
+   * When a cache file in cacheDir is deleted externally, regenerates it if the
+   * source photo still exists, otherwise drops the manifest entry.
+   * @param filePath Path of the deleted cache file
    */
   private async handleCacheFileRemoved(filePath: string): Promise<void> {
     const cacheFileName = path.basename(filePath)
     if (cacheFileName === path.basename(this.manifestPath)) {
       return
     }
-    // 本プロセスはキャッシュファイルを manifest エントリと一緒にしか削除しないため、
-    // エントリが無いイベントは外部削除ではない
+    // This process only deletes cache files together with their manifest
+    // entry, so an event with no matching entry is not an external deletion
     const relPath = Object.keys(this.manifest).find(
       (key) => this.manifest[key].cacheFileName === cacheFileName
     )
     if (relPath === undefined) {
       return
     }
-    // ファイル名は relPath から決まるため、遅れて届いたイベントが、後続の
-    // add/change イベントで再生成済みのファイルを指すことがある
+    // The file name is derived from relPath, so a late event may refer to a
+    // file already regenerated by a later add/change event
     if (await this.pathExists(filePath)) {
       return
     }
@@ -396,9 +387,9 @@ export class PhotoCache {
   }
 
   /**
-   * 画像を1件処理して manifest に記録する
-   * @param file 処理対象の元ファイル情報
-   * @returns 処理に成功した場合は true、失敗した場合は false
+   * Processes one photo and records it in the manifest.
+   * @param file Source file to process
+   * @returns true on success, false on failure
    */
   private async processAndRecord(file: SourceFile): Promise<boolean> {
     const cacheFileName = this.cacheFileNameFor(file.relPath)

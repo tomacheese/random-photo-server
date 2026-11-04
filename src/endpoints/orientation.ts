@@ -16,8 +16,9 @@ interface PhotoframeParams {
 }
 
 /**
- * 写真の向き(縦長・横長)でフィルタリングした画像配信エンドポイントを提供するルーター。
- * `/portrait`・`/landscape` はランダムに選び、`/portrait/:photoframeId`・`/landscape/:photoframeId` はリクエスト時刻とフォトフレーム番号に基づき決定論的に選ぶ
+ * Router serving photos filtered by orientation (portrait or landscape).
+ * `/portrait` and `/landscape` pick at random; `/portrait/:photoframeId` and
+ * `/landscape/:photoframeId` pick deterministically from the request time and the photo frame ID.
  */
 export class OrientationRouter extends BaseRouter {
   private readonly photoCache: PhotoCacheReader

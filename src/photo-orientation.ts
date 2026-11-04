@@ -1,5 +1,5 @@
 /**
- * 画像の向き。正方形に近いアスペクト比の場合は 'square' とする
+ * Photo orientation. Near-square aspect ratios are 'square'.
  */
 export type PhotoOrientation = 'portrait' | 'landscape' | 'square'
 
@@ -7,12 +7,12 @@ const SQUARE_ASPECT_RATIO_MIN = 0.95
 const SQUARE_ASPECT_RATIO_MAX = 1.05
 
 /**
- * 画像の幅・高さから向きを判定する。
- * アスペクト比(width / height)が正方形とみなせる範囲に入る場合は 'square' として扱う
+ * Determines orientation from width and height.
+ * An aspect ratio (width / height) within the square range is 'square'.
  *
- * @param width 画像の幅(px)
- * @param height 画像の高さ(px)
- * @returns 判定された向き
+ * @param width Width in px
+ * @param height Height in px
+ * @returns The detected orientation
  */
 export function getPhotoOrientation(
   width: number,

@@ -10,12 +10,11 @@ import { PhotoCache } from './photo-cache/index.js'
 import { PhotoSelector } from './photo-selector.js'
 
 /**
- * Fastify アプリケーションを構築する
+ * Builds the Fastify application and registers all routers.
  *
- * @param photoCache 初期化・監視開始済みの PhotoCache
- * @param photoSelector 画像選択に使う PhotoSelector
- * @param bucketWidthSeconds タイムスタンプベース配信で同一画像を返す時間幅(秒)
- * @returns Fastify アプリケーション
+ * @param photoCache A PhotoCache that has already been initialized and is being watched
+ * @param photoSelector Selector used for random picks
+ * @param bucketWidthSeconds Time window (seconds) during which the deterministic endpoints return the same photo
  */
 export async function buildApp(
   photoCache: PhotoCache,
@@ -29,7 +28,7 @@ export async function buildApp(
     origin: true,
     methods: ['GET'],
   })
-  // global: false のため、config.rateLimit を明示指定したルートのみ制限される
+  // With global: false, only routes that set config.rateLimit are rate limited
   await app.register(rateLimit, { global: false })
 
   const routers: BaseRouter[] = [
