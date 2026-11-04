@@ -31,7 +31,7 @@
     "fix": "run-z fix:prettier,fix:eslint"
   },
   "dependencies": {
-    "@book000/node-utils": "1.24.292",
+    "@book000/node-utils": "1.26.1",
     "@fastify/cors": "11.3.0",
     "@fastify/rate-limit": "11.2.0",
     "chokidar": "5.0.0",
