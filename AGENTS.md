@@ -58,6 +58,29 @@ docker compose up --build
 - Do not hard-code secrets such as API keys or passwords; read them via `ENV`. Never commit files containing secrets.
 - `photos/`, `cache/` and `data/` are gitignored. Never commit real photos or generated cache files.
 
+## CI and release security
+
+- `.github/workflows/docker.yml` builds fork PRs through `pull_request_target`, and the `approval-gate` job gates them behind the `fork-pr-build` environment.
+- The environment exists with `book000` (user id 8929706) as the required reviewer, `prevent_self_review: false` (the single reviewer must not be locked out of approving a fork PR they opened), no wait timer and no deployment branch policy.
+- Verify the protection with the read-only command below. It must print `true`; a 404 or `false` means the gate is unprotected, because GitHub auto-creates a missing environment without protection rules when a job references it.
+
+  ```bash
+  gh api repos/tomacheese/random-photo-server/environments/fork-pr-build --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[].reviewer.login] | contains(["book000"])'
+  ```
+
+- If the environment is missing, recreate it before any fork PR is built. This is for recovery only and is run by a repository admin; a PUT overwrites the environment's settings, and this environment has no others.
+
+  ```bash
+  gh api -X PUT repos/tomacheese/random-photo-server/environments/fork-pr-build --input - <<'EOF'
+  {
+    "reviewers": [{ "type": "User", "id": 8929706 }],
+    "prevent_self_review": false
+  }
+  EOF
+  ```
+
+- Do not remove the `environment` gate or change `allow-unsafe-pr-checkout` without keeping an equivalent manual approval.
+
 ## Testing
 
 - Unit tests use Vitest and live next to the sources (`src/**/*.test.ts`).
