@@ -32,7 +32,7 @@ docker compose up --build
 - `src/environments.ts`: the `ENV` object and `parseRescanIntervalSec`.
 - `src/photo-cache/manifest.ts`: pure functions diffing a `photos/` scan against `cache/manifest.json`.
 - `src/photo-cache/process.ts`: resize and compression with `sharp`.
-- `src/photo-cache/index.ts`: `PhotoCache`. Builds the cache, watches `photos/` and `cache/` with `chokidar`, and rescans `photos/` periodically (`rescanIntervalMs`) for network mounts where watch events never arrive.
+- `src/photo-cache/index.ts`: `PhotoCache`. Builds the cache, watches `photos/` and `cache/` with `chokidar`, and rescans `photos/` periodically (`rescanIntervalMs`) for network mounts where watch events never arrive. Startup and periodic reconciliation also regenerate cache files that are missing from `cache/`.
 - `src/photo-selector.ts`: `PhotoSelector`. Random pick that avoids recently served photos per client IP.
 - `src/photo-orientation.ts`: `getPhotoOrientation` (`portrait` / `landscape` / `square`).
 - `src/deterministic-selector.ts`: `getBucketIndex` / `pickDeterministic` for time-bucketed deterministic selection.

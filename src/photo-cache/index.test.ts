@@ -4,6 +4,12 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PhotoCache } from './index.js'
+import { processImage } from './process.js'
+
+vi.mock('./process.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./process.js')>()
+  return { ...actual, processImage: vi.fn(actual.processImage) }
+})
 
 async function writeTestPng(
   filePath: string,
@@ -127,6 +133,40 @@ describe('PhotoCache', () => {
       cache2.getCachedEntries().find((e) => e.relPath === 'b.png')
     ).toBeUndefined()
     await expect(fs.stat(bCachePath)).rejects.toThrow()
+  })
+
+  it('regenerates a cache file deleted while the server was stopped', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = new PhotoCache({
+      photosDir,
+      cacheDir,
+      maxEdgePx: 2048,
+      jpegQuality: 82,
+    })
+    await cache.init()
+    const [entry] = cache.getCachedEntries()
+    const cachePath = path.join(cacheDir, entry.cacheFileName)
+    await fs.rm(cachePath)
+
+    const cache2 = new PhotoCache({
+      photosDir,
+      cacheDir,
+      maxEdgePx: 2048,
+      jpegQuality: 82,
+    })
+    await cache2.init()
+
+    await expect(fs.access(cachePath)).resolves.toBeUndefined()
+    expect(cache2.getCount()).toBe(1)
+    expect(cache2.getCachedEntries()).toEqual([
+      {
+        relPath: 'a.png',
+        cacheFileName: entry.cacheFileName,
+        format: 'jpeg',
+        width: 400,
+        height: 300,
+      },
+    ])
   })
 
   it('starts fresh instead of crashing when manifest.json is corrupted', async () => {
@@ -300,6 +340,7 @@ describe('PhotoCache periodic rescan', () => {
   afterEach(async () => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+    vi.mocked(processImage).mockReset()
     const toClose = [...caches]
     caches.length = 0
     await Promise.all(toClose.map((cache) => cache.close()))
@@ -380,6 +421,84 @@ describe('PhotoCache periodic rescan', () => {
       path.join(cacheDir, entry.cacheFileName)
     )
     expect(cacheStatAfter.mtimeMs).toBe(cacheStatBefore.mtimeMs)
+  })
+
+  describe('when a cache file is missing', () => {
+    async function initWithPhotos(): Promise<{
+      cache: PhotoCache
+      cachePath: string
+    }> {
+      await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+      await writeTestPng(path.join(photosDir, 'b.png'), 200, 200)
+      const cache = createCache()
+      await cache.init()
+      const entry = cache.getCachedEntries().find((e) => e.relPath === 'a.png')
+      return {
+        cache,
+        cachePath: path.join(cacheDir, entry?.cacheFileName ?? ''),
+      }
+    }
+
+    it('regenerates it without any watcher event and keeps the manifest content', async () => {
+      const { cache, cachePath } = await initWithPhotos()
+      const manifestBefore = await readManifest()
+      await fs.rm(cachePath)
+
+      await cache.rescan()
+
+      await expect(fs.access(cachePath)).resolves.toBeUndefined()
+      expect(cache.getCount()).toBe(2)
+      expect(await readManifest()).toEqual(manifestBefore)
+    })
+
+    it('drops the entry and creates no file when the source photo is also gone', async () => {
+      const { cache, cachePath } = await initWithPhotos()
+      await fs.rm(cachePath)
+      await fs.rm(path.join(photosDir, 'a.png'))
+
+      await cache.rescan()
+
+      expect(cache.getCount()).toBe(1)
+      expect(Object.keys(await readManifest())).toEqual(['b.png'])
+      await expect(fs.stat(cachePath)).rejects.toThrow()
+    })
+
+    it('drops the entry when regeneration fails and restores it on the next rescan', async () => {
+      const { cache, cachePath } = await initWithPhotos()
+      await fs.rm(cachePath)
+      vi.mocked(processImage).mockRejectedValueOnce(new Error('boom'))
+
+      await expect(cache.rescan()).resolves.toBeUndefined()
+
+      expect(cache.getCount()).toBe(1)
+      expect(Object.keys(await readManifest())).toEqual(['b.png'])
+
+      await cache.rescan()
+
+      expect(cache.getCount()).toBe(2)
+      expect(
+        Object.keys(await readManifest()).toSorted((a, b) => a.localeCompare(b))
+      ).toEqual(['a.png', 'b.png'])
+      await expect(fs.access(cachePath)).resolves.toBeUndefined()
+    })
+
+    it('processes a changed source exactly once', async () => {
+      const { cache, cachePath } = await initWithPhotos()
+      await writeTestPng(path.join(photosDir, 'a.png'), 800, 600)
+      await fs.rm(cachePath)
+      vi.mocked(processImage).mockClear()
+
+      await cache.rescan()
+
+      expect(processImage).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(processImage).mock.calls[0][0]).toBe(
+        path.join(photosDir, 'a.png')
+      )
+      expect(cache.getCachedEntries()).toContainEqual(
+        expect.objectContaining({ relPath: 'a.png', width: 800, height: 600 })
+      )
+      await expect(fs.access(cachePath)).resolves.toBeUndefined()
+    })
   })
 
   it('keeps the manifest and cache files when the photos directory is unreadable', async () => {

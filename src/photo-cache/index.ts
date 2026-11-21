@@ -104,13 +104,25 @@ export class PhotoCache {
   private async reconcile(): Promise<ReconcileResult> {
     const sourceFiles = await this.scanPhotosDir()
     const { toProcess, toRemove } = diffManifest(sourceFiles, this.manifest)
+    // Must run before processing, which recreates the file and hides its absence
+    const missingCache = await this.findMissingCacheFiles(sourceFiles)
+    const queued = new Set(toProcess.map((file) => file.relPath))
+    const toRepair = sourceFiles.filter(
+      (file) => missingCache.has(file.relPath) && !queued.has(file.relPath)
+    )
 
     let processed = 0
     let removed = 0
+    let dropped = 0
     try {
-      for (const file of toProcess) {
+      for (const file of [...toProcess, ...toRepair]) {
         if (await this.processAndRecord(file)) {
           processed++
+        } else if (missingCache.has(file.relPath)) {
+          // Never leave an entry pointing at a missing file; the next scan retries
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete this.manifest[file.relPath]
+          dropped++
         }
       }
       for (const relPath of toRemove) {
@@ -128,7 +140,35 @@ export class PhotoCache {
       }
       throw error
     }
-    return { changed: processed > 0 || removed > 0, processed, removed }
+    return {
+      changed: processed > 0 || removed > 0 || dropped > 0,
+      processed,
+      removed,
+    }
+  }
+
+  /**
+   * Finds scanned photos whose manifest entry points at a cache file that does not exist.
+   * @returns relPaths of the affected photos
+   */
+  private async findMissingCacheFiles(
+    sourceFiles: SourceFile[]
+  ): Promise<Set<string>> {
+    const missing = new Set<string>()
+    for (const { relPath } of sourceFiles) {
+      if (!Object.hasOwn(this.manifest, relPath)) {
+        continue
+      }
+      const cachePath = path.join(
+        this.options.cacheDir,
+        this.manifest[relPath].cacheFileName
+      )
+      if (!(await this.pathExists(cachePath))) {
+        this.logger.info(`♻️ Cache file missing, regenerating: ${relPath}`)
+        missing.add(relPath)
+      }
+    }
+    return missing
   }
 
   /**

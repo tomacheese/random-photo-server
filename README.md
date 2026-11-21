@@ -7,7 +7,7 @@ It is hosted at `https://vrps.tomacheese.com` and is mainly used by photo frames
 
 - On startup, the server scans `photos/` and stores resized, compressed images (via `sharp`) in `cache/`. `cache/manifest.json` tracks what has already been processed.
 - After startup, it keeps watching `photos/` with `chokidar` and updates `cache/` when photos are added, changed or removed.
-- Network mounts such as Azure File Share do not deliver filesystem events, so the server also rescans `photos/` every `RESCAN_INTERVAL_SEC` seconds and applies the differences to `cache/` (`0` disables this).
+- Network mounts such as Azure File Share do not deliver filesystem events, so the server also rescans `photos/` every `RESCAN_INTERVAL_SEC` seconds and applies the differences to `cache/` (`0` disables this). Both the startup scan and the periodic rescan also regenerate any cached image that is missing from `cache/`, for example one deleted while the server was stopped.
 - `photos/` is never exposed over HTTP. Only generated files in `cache/` are served.
 
 ## Endpoints
