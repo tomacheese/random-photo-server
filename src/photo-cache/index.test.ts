@@ -423,6 +423,25 @@ describe('PhotoCache periodic rescan', () => {
     expect(cacheStatAfter.mtimeMs).toBe(cacheStatBefore.mtimeMs)
   })
 
+  it('saves the manifest again after a one-time write failure', async () => {
+    await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
+    const cache = createCache()
+    await cache.init()
+    const { saveManifest } = cache as unknown as {
+      saveManifest: () => Promise<void>
+    }
+    const save = saveManifest.bind(cache)
+    const writeFile = vi
+      .spyOn(fs, 'writeFile')
+      .mockRejectedValueOnce(new Error('disk full'))
+
+    await expect(save()).rejects.toThrow('disk full')
+    await expect(save()).resolves.toBeUndefined()
+
+    expect(writeFile).toHaveBeenCalledTimes(2)
+    expect(Object.keys(await readManifest())).toEqual(['a.png'])
+  })
+
   describe('when a cache file is missing', () => {
     async function initWithPhotos(): Promise<{
       cache: PhotoCache

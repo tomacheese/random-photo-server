@@ -496,7 +496,8 @@ export class PhotoCache {
     this.cachedEntries = null
     this.saveRequested = true
     const chain = this.saveChain.then(() => this.flushManifest())
-    this.saveChain = chain
+    // The tail must never reject, or one failed write would skip every later save
+    this.saveChain = chain.catch(() => undefined)
     await chain
   }
 
