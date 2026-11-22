@@ -23,8 +23,9 @@ export interface ProcessImageResult {
 }
 
 /**
- * Resizes an image to fit within maxEdgePx on its long edge (never enlarging)
- * and writes it to outputPath as JPEG.
+ * Applies the EXIF orientation, resizes an image to fit within maxEdgePx on its
+ * long edge (never enlarging) and writes it to outputPath as JPEG. The output
+ * carries no orientation tag, so the returned dimensions are the upright ones.
  *
  * @param inputPath Path of the source image
  * @param outputPath Path to write to
@@ -37,6 +38,7 @@ export async function processImage(
   options: ProcessImageOptions
 ): Promise<ProcessImageResult> {
   const info = await sharp(inputPath)
+    .autoOrient()
     .resize({
       width: options.maxEdgePx,
       height: options.maxEdgePx,

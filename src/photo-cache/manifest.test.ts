@@ -25,6 +25,10 @@ describe('computeSourceHash', () => {
       computeSourceHash(1024, 1_700_000_001_000)
     )
   })
+
+  it('appends the pipeline version suffix', () => {
+    expect(computeSourceHash(100, 1000)).toBe('100-1000-o1')
+  })
 })
 
 describe('diffManifest', () => {
@@ -58,6 +62,25 @@ describe('diffManifest', () => {
 
     expect(toProcess).toEqual([])
     expect(toRemove).toEqual([])
+  })
+
+  it('marks a file whose entry carries a legacy hash as toProcess', () => {
+    const sourceFiles: SourceFile[] = [
+      { relPath: 'a.png', size: 100, mtimeMs: 1000 },
+    ]
+    const manifest: Manifest = {
+      'a.png': {
+        hash: '100-1000',
+        cacheFileName: 'abc.jpg',
+        format: 'jpeg',
+        width: 800,
+        height: 600,
+      },
+    }
+
+    const { toProcess } = diffManifest(sourceFiles, manifest)
+
+    expect(toProcess).toEqual(sourceFiles)
   })
 
   it('marks a changed file (different hash) as toProcess', () => {

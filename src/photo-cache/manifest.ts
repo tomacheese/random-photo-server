@@ -35,13 +35,15 @@ export interface ManifestDiff {
 
 /**
  * Computes the change-detection hash string from a source file's size and mtimeMs.
+ * The trailing suffix is the processing pipeline version; bump it whenever
+ * `processImage` output changes so existing cache entries are regenerated.
  *
  * @param size File size in bytes
  * @param mtimeMs Last modified time in epoch milliseconds
  * @returns Hash string used to detect changes
  */
 export function computeSourceHash(size: number, mtimeMs: number): string {
-  return `${size}-${Math.round(mtimeMs)}`
+  return `${size}-${Math.round(mtimeMs)}-o1`
 }
 
 /**

@@ -104,6 +104,49 @@ describe('PhotoCache', () => {
     expect(bEntryAfter?.cacheFileName).toBe(bEntryBefore?.cacheFileName)
   })
 
+  it('regenerates an entry carrying a legacy hash with upright dimensions', async () => {
+    await sharp({
+      create: {
+        width: 40,
+        height: 20,
+        channels: 3,
+        background: { r: 100, g: 100, b: 100 },
+      },
+    })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toFile(path.join(photosDir, 'a.jpg'))
+    const options = {
+      photosDir,
+      cacheDir,
+      maxEdgePx: 2048,
+      jpegQuality: 82,
+    }
+    await new PhotoCache(options).init()
+
+    const manifestPath = path.join(cacheDir, 'manifest.json')
+    const manifest = JSON.parse(
+      await fs.readFile(manifestPath, 'utf8')
+    ) as Record<string, { hash: string; width: number; height: number }>
+    manifest['a.jpg'].hash = manifest['a.jpg'].hash.replace(/-o1$/, '')
+    manifest['a.jpg'].width = 40
+    manifest['a.jpg'].height = 20
+    await fs.writeFile(manifestPath, JSON.stringify(manifest))
+    vi.mocked(processImage).mockClear()
+
+    const cache = new PhotoCache(options)
+    await cache.init()
+
+    expect(vi.mocked(processImage)).toHaveBeenCalledTimes(1)
+    const entry = cache.getCachedEntries().find((e) => e.relPath === 'a.jpg')
+    expect(entry).toMatchObject({ width: 20, height: 40 })
+    const saved = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as Record<
+      string,
+      { hash: string }
+    >
+    expect(saved['a.jpg'].hash).toMatch(/-o1$/)
+  })
+
   it('removes cache entries and files for photos that no longer exist', async () => {
     await writeTestPng(path.join(photosDir, 'a.png'), 400, 300)
     await writeTestPng(path.join(photosDir, 'b.png'), 200, 200)
