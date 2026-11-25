@@ -65,13 +65,12 @@ export class PhotosRouter extends BaseRouter {
   }
 
   init(): Promise<void> {
-    this.fastify.get('/photos', this.routeGetPhotoList.bind(this))
     this.fastify.get(
-      '/photos/:id',
-      // Rate limit per IP because this route reads files
-      { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-      this.routeGetPhotoById.bind(this)
+      '/photos',
+      { config: { rateLimit: false } },
+      this.routeGetPhotoList.bind(this)
     )
+    this.fastify.get('/photos/:id', this.routeGetPhotoById.bind(this))
     return Promise.resolve()
   }
 

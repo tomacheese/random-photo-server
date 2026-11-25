@@ -33,7 +33,11 @@ export class RootRouter extends BaseRouter {
 
   init(): Promise<void> {
     this.fastify.get('/', this.routeGetRandomPhoto.bind(this))
-    this.fastify.get('/health', this.routeGetHealth.bind(this))
+    this.fastify.get(
+      '/health',
+      { config: { rateLimit: false } },
+      this.routeGetHealth.bind(this)
+    )
     return Promise.resolve()
   }
 
