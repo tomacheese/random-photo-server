@@ -24,6 +24,7 @@ It is hosted at `https://vrps.tomacheese.com` and is mainly used by photo frames
 | GET | `/health` | Health check returning whether the cache is ready and the number of cached photos |
 
 Image endpoints respond with `503` while the cache is not ready or has no matching photos.
+Image requests share a limit of 60 requests per minute per client IP; requests above the limit receive `429`. Behind a proxy, clients may share the proxy's IP and therefore the same limit.
 
 ## Environment variables
 

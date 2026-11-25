@@ -28,8 +28,7 @@ export async function buildApp(
     origin: true,
     methods: ['GET'],
   })
-  // With global: false, only routes that set config.rateLimit are rate limited
-  await app.register(rateLimit, { global: false })
+  await app.register(rateLimit, { max: 60, timeWindow: '1 minute' })
 
   const routers: BaseRouter[] = [
     new RootRouter(app, photoCache, photoSelector),
