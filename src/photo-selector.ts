@@ -46,6 +46,14 @@ export class PhotoSelector {
     clientKey: string,
     now: number
   ): T | null {
+    for (const [key, history] of this.recentByClient) {
+      if (
+        history.every((entry) => now - entry.timestamp >= this.dedupeWindowMs)
+      ) {
+        this.recentByClient.delete(key)
+      }
+    }
+
     if (candidates.length === 0) {
       return null
     }

@@ -56,4 +56,28 @@ describe('PhotoSelector', () => {
     // different clients do not share recent history, so 'a' may be picked again
     expect(selector.pick(candidates, '10.0.0.1', 0)?.id).toBe('a')
   })
+
+  it('removes expired clients during churn while retaining active histories', () => {
+    const selector = new PhotoSelector({
+      dedupeWindowMs: 1000,
+      randomFn: () => 0,
+    })
+    const candidates = [{ id: 'a' }, { id: 'b' }]
+
+    for (let i = 0; i < 1000; i++) {
+      selector.pick(candidates, `client-${i}`, 0)
+    }
+    selector.pick(candidates, 'active', 999)
+    selector.pick(candidates, 'new', 1000)
+
+    const histories = Reflect.get(selector, 'recentByClient') as Map<
+      string,
+      unknown
+    >
+    expect(histories.size).toBe(2)
+    expect(selector.pick(candidates, 'active', 1000)?.id).toBe('b')
+    expect(selector.pick(candidates, 'client-0', 1000)?.id).toBe('a')
+    selector.pick([], 'unused', 2000)
+    expect(histories.size).toBe(0)
+  })
 })
